@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Instagram Analytic</title>
+</head>
+<body>
+  
+  <h1>MSO Instagram Analytics</h1>
+  <table>
+    <tr id="head-row">
+      <td>Name</td>
+      <td>Likes</td>
+      <td>Comments</td>
+    </tr>
+  </table>
+
+  <style type="text/css">
+    table {
+      width: 50%;
+      text-align: center;
+      border-collapse: collapse;
+    }
+    table, td, th {
+        border: 1px solid lightgrey;
+    }
+    #head-row {
+      background-color: lightgrey;
+    }
+  </style>
+
+</body>
+</html>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+
+
+<script src="JSONP/JSONP.js"></script>
+<script type="text/javascript">
+var members = [];
+
+  var BASE_URL_FRONT = 'https://api.instagram.com/v1/';
+  var BASE_URL_END = '?count=50&access_token=187485524.ae83e28.2ac75d4035df42f3b051e3766cd8b590';
+
+  var urlForPost = BASE_URL_FRONT + 'media/1073581402888614180_1479452315/likes' + BASE_URL_END;
+  var urlForMSO = BASE_URL_FRONT + 'tags/morningsignout/media/recent' + BASE_URL_END;
+  JSONP(urlForMSO,function(json){
+    var posts = json.data;
+    for (var i = 0; i < posts.length; i++) {
+      var ID = posts[i].id;
+      getDataForID(ID, 'likes');
+      getDataForID(ID, 'comments');
+    };
+
+    var max_id = json.pagination.next_max_tag_id;
+    // Get 2 more batches of posts since first only returns ~30;
+    JSONP(BASE_URL_FRONT + 'tags/morningsignout/media/recent' + BASE_URL_END + '&max_id=' + max_id, function(json2){
+      var posts2 = json2.data;
+      for (var i = 0; i < posts2.length; i++) {
+        var ID2 = posts2[i].id;
+        getDataForID(ID2, 'likes');
+        getDataForID(ID2, 'comments');
+      };
+
+      // Get last batch of posts to get a little over a month of posts ~5 weeks
+      var max_id2 = json2.pagination.next_max_tag_id;
+      // Get 2 more batches of posts since first only returns ~30;
+      JSONP(BASE_URL_FRONT + 'tags/morningsignout/media/recent' + BASE_URL_END + '&max_id=' + max_id2, function(json3){
+        var posts3 = json3.data;
+        for (var i = 0; i < posts3.length; i++) {
+          var ID3 = posts3[i].id;
+          getDataForID(ID3, 'likes');
+          getDataForID(ID3, 'comments');
+        };
+      });
+    });
+
+  });
+
+  function getDataForID(id, dataType) {
+    JSONP(BASE_URL_FRONT + 'media/' + id + '/' + dataType + BASE_URL_END, function(json){
+      var data = json.data;
+      for (var i = 0; i < data.length; i++) {
+        // Get name from JSON
+        var name;
+
+        if (dataType == 'likes') {
+          name = data[i].username;
+        } else {
+          name = data[i].from.username;
+        }
+        members.push(name);
+
+        // Add name to global dictionary if doesn't exist yet
+        if (members[name] == undefined) {
+
+          if (dataType == 'likes') {
+            members[name] = { "likes" : 1, "comments" : 0 };
+            addTableRow(name, 1, 0);
+          } else {
+            members[name] = { "likes" : 0, "comments" : 1 };
+            addTableRow(name, 0, 1);
+          }
+
+        // Increment like or comment count
+        } else {
+
+          var filteredName = name.replace(/\s+/g, '-').toLowerCase();
+          if (dataType == 'likes') {
+            var numLikes = members[name]["likes"] + 1;
+            members[name]["likes"] = numLikes;
+            $('#' + filteredName).find('.likes').text(String(numLikes));
+          } else {
+            var numComments = members[name]["comments"] + 1;
+            members[name]["comments"] = numComments;
+            $('#' + filteredName).find('.comments').text(String(numComments));
+          }
+          
+        }
+      }
+    });
+  }
+
+  function addTableRow(name, likes, comments) {
+    var filteredName = name.replace(/\s+/g, '-').toLowerCase();
+    var row = $('<tr id="' + filteredName + '"></tr>');
+    var n = $('<td class="name">' + name + '</td>');
+    var l = $('<td class="likes">' + likes + '</td>');
+    var c = $('<td class="comments">' + comments + '</td>');
+    row.append(n);
+    row.append(l);
+    row.append(c);
+    $('table').append(row);
+  }
+</script>
